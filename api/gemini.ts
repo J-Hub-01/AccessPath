@@ -8,7 +8,7 @@ import {
   buildUpsellPrompt,
   type HelpRequestKind,
   type SupportedLanguage,
-} from '../src/lib/prompts'
+} from '../src/lib/prompts.js'
 
 /**
  * Serverless proxy for Gemini calls.
