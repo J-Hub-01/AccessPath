@@ -7,6 +7,7 @@ import { FallbackCard } from './FallbackCard'
 import { translateSummary } from '../lib/gemini'
 import { parseTranslateResponse } from '../lib/schema'
 import { logger } from '../lib/logger'
+import { pickVoice } from '../lib/voice'
 
 export type ResponseStatus = 'idle' | 'streaming' | 'structured' | 'unstructured' | 'fallback'
 
@@ -67,6 +68,10 @@ export function ResponsePanel({
 
     const utterance = new SpeechSynthesisUtterance(textToSpeak)
     utterance.lang = { en: 'en-US', es: 'es-ES', fr: 'fr-FR' }[language]
+    const voice = pickVoice(language)
+    if (voice) utterance.voice = voice
+    utterance.rate = 0.95
+    utterance.pitch = 1.0
     utterance.onend = () => setIsSpeaking(false)
     utterance.onerror = () => setIsSpeaking(false)
     synth.speak(utterance)
