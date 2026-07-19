@@ -1,0 +1,68 @@
+rules_version = '2';
+
+// AccessPath v2 — Firestore security rules.
+//
+// Deploy with: firebase deploy --only firestore:rules
+// (requires the Firebase CLI and a firebase.json pointing at this file —
+// see DEPLOY.md).
+//
+// Threat model for a hackathon-scale public demo: anyone with the app URL
+// can read/write orders and help requests (there is no login — see
+// lib/session.ts). These rules exist to stop the two things that matter
+// most at this scale: (1) writing malformed documents that would corrupt
+// the live queues, and (2) a client tampering with a document's origin
+// fields (sessionId, kind, createdAt) after the fact. They do NOT provide
+// real per-user access control — that requires Firebase Auth, out of
+// scope for the 2026-07-19 submission window (see README "Known
+// limitations").
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /orders/{orderId} {
+      allow read: if true;
+
+      allow create: if request.resource.data.keys().hasAll(
+                      ['section', 'items', 'notes', 'sessionId', 'status', 'createdAt']
+                    )
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.items is list
+                    && request.resource.data.items.size() > 0
+                    && request.resource.data.items.size() <= 20
+                    && request.resource.data.section is string
+                    && request.resource.data.section.size() <= 100
+                    && request.resource.data.notes is string
+                    && request.resource.data.notes.size() <= 500;
+
+      // Only the status field may change after creation (staff marking an
+      // order fulfilled) — every other field is immutable.
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+                      .hasOnly(['status'])
+                    && request.resource.data.status in ['pending', 'fulfilled'];
+
+      allow delete: if false;
+    }
+
+    match /helpRequests/{requestId} {
+      allow read: if true;
+
+      allow create: if request.resource.data.keys().hasAll(
+                      ['section', 'sessionId', 'kind', 'description', 'urgency', 'staffSummary', 'status', 'createdAt']
+                    )
+                    && request.resource.data.status == 'open'
+                    && request.resource.data.kind in ['lost', 'disturbance', 'general']
+                    && request.resource.data.urgency in ['low', 'medium', 'high']
+                    && request.resource.data.description is string
+                    && request.resource.data.description.size() <= 2000
+                    && request.resource.data.staffSummary is string
+                    && request.resource.data.staffSummary.size() <= 300;
+
+      // Only the status field may change after creation (staff
+      // acknowledging/resolving) — every other field is immutable.
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+                      .hasOnly(['status'])
+                    && request.resource.data.status in ['open', 'acknowledged', 'resolved'];
+
+      allow delete: if false;
+    }
+  }
+}
