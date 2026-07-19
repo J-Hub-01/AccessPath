@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState, type KeyboardEvent } from 'react'
 import { InputPanel } from './InputPanel'
 import { ResponsePanel } from './ResponsePanel'
 import { OrderForm } from './OrderForm'
@@ -35,6 +35,22 @@ export function FanDashboard({ session, language, strings }: FanDashboardProps) 
     { id: 'help', label: strings.tabHelp },
   ]
 
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
+
+  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    let nextIndex: number | null = null
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length
+    else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length
+    else if (event.key === 'Home') nextIndex = 0
+    else if (event.key === 'End') nextIndex = tabs.length - 1
+    if (nextIndex === null) return
+    event.preventDefault()
+    const nextTab = tabs[nextIndex]
+    if (!nextTab) return
+    setTab(nextTab.id)
+    tabRefs.current[nextIndex]?.focus()
+  }
+
   const lostStrings: UiStrings = {
     ...strings,
     textInputLabel: strings.lostInputLabel,
@@ -49,15 +65,20 @@ export function FanDashboard({ session, language, strings }: FanDashboardProps) 
         aria-label={strings.roleFanLabel}
         className="flex flex-wrap gap-2 border-b border-slate-700 pb-2"
       >
-        {tabs.map((t) => (
+        {tabs.map((t, index) => (
           <button
             key={t.id}
+            ref={(el) => {
+              tabRefs.current[index] = el
+            }}
             type="button"
             role="tab"
             id={`tab-${t.id}`}
             aria-selected={tab === t.id}
             aria-controls={`panel-${t.id}`}
+            tabIndex={tab === t.id ? 0 : -1}
             onClick={() => setTab(t.id)}
+            onKeyDown={(event) => handleTabKeyDown(event, index)}
             className={`min-h-11 rounded-md px-4 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
               tab === t.id
                 ? 'bg-teal-600 text-white'

@@ -99,7 +99,7 @@ export function HelpQueue({ strings }: HelpQueueProps) {
                     </span>
                   </div>
                   <p className="mt-2 text-sm text-slate-200">{request.staffSummary}</p>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-slate-400">
                     {strings[STATUS_LABEL_KEY[request.status]]}
                   </p>
                 </div>

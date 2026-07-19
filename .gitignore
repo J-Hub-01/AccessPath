@@ -37,3 +37,5 @@ docs/*.png.orig
 
 # Coverage
 coverage/
+.vercel
+.env*

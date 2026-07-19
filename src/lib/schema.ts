@@ -20,14 +20,15 @@ export const TranslateResponseSchema = z.object({
 
 export type TranslateResponse = z.infer<typeof TranslateResponseSchema>
 
+type ParseResult<T> = { success: true; data: T } | { success: false; error: string }
+
 /**
- * Attempts to parse raw Gemini text (which should be strict JSON per the
- * system prompt) into a validated AccessPathResponse. Strips markdown code
- * fences defensively in case the model wraps its JSON despite instructions.
+ * Shared helper: strips defensive markdown code fences (in case the model
+ * wraps its JSON despite instructions), parses JSON, then validates against
+ * the given Zod schema. All four response parsers below delegate here so
+ * the fence-stripping logic lives in exactly one place.
  */
-export function parseAccessPathResponse(
-  raw: string,
-): { success: true; data: AccessPathResponse } | { success: false; error: string } {
+function parseGeminiJson<T>(raw: string, schema: z.ZodType<T>): ParseResult<T> {
   const cleaned = raw
     .trim()
     .replace(/^```(?:json)?\n?/, '')
@@ -40,33 +41,23 @@ export function parseAccessPathResponse(
     return { success: false, error: 'Response was not valid JSON.' }
   }
 
-  const result = AccessPathResponseSchema.safeParse(parsedJson)
+  const result = schema.safeParse(parsedJson)
   if (!result.success) {
     return { success: false, error: result.error.message }
   }
   return { success: true, data: result.data }
 }
 
-export function parseTranslateResponse(
-  raw: string,
-): { success: true; data: TranslateResponse } | { success: false; error: string } {
-  const cleaned = raw
-    .trim()
-    .replace(/^```(?:json)?\n?/, '')
-    .replace(/\n?```$/, '')
+/**
+ * Attempts to parse raw Gemini text (which should be strict JSON per the
+ * system prompt) into a validated AccessPathResponse.
+ */
+export function parseAccessPathResponse(raw: string): ParseResult<AccessPathResponse> {
+  return parseGeminiJson(raw, AccessPathResponseSchema)
+}
 
-  let parsedJson: unknown
-  try {
-    parsedJson = JSON.parse(cleaned)
-  } catch {
-    return { success: false, error: 'Response was not valid JSON.' }
-  }
-
-  const result = TranslateResponseSchema.safeParse(parsedJson)
-  if (!result.success) {
-    return { success: false, error: result.error.message }
-  }
-  return { success: true, data: result.data }
+export function parseTranslateResponse(raw: string): ParseResult<TranslateResponse> {
+  return parseGeminiJson(raw, TranslateResponseSchema)
 }
 
 /**
@@ -80,26 +71,8 @@ export const TriageResponseSchema = z.object({
 
 export type TriageResponse = z.infer<typeof TriageResponseSchema>
 
-export function parseTriageResponse(
-  raw: string,
-): { success: true; data: TriageResponse } | { success: false; error: string } {
-  const cleaned = raw
-    .trim()
-    .replace(/^```(?:json)?\n?/, '')
-    .replace(/\n?```$/, '')
-
-  let parsedJson: unknown
-  try {
-    parsedJson = JSON.parse(cleaned)
-  } catch {
-    return { success: false, error: 'Response was not valid JSON.' }
-  }
-
-  const result = TriageResponseSchema.safeParse(parsedJson)
-  if (!result.success) {
-    return { success: false, error: result.error.message }
-  }
-  return { success: true, data: result.data }
+export function parseTriageResponse(raw: string): ParseResult<TriageResponse> {
+  return parseGeminiJson(raw, TriageResponseSchema)
 }
 
 /**
@@ -112,24 +85,6 @@ export const UpsellResponseSchema = z.object({
 
 export type UpsellResponse = z.infer<typeof UpsellResponseSchema>
 
-export function parseUpsellResponse(
-  raw: string,
-): { success: true; data: UpsellResponse } | { success: false; error: string } {
-  const cleaned = raw
-    .trim()
-    .replace(/^```(?:json)?\n?/, '')
-    .replace(/\n?```$/, '')
-
-  let parsedJson: unknown
-  try {
-    parsedJson = JSON.parse(cleaned)
-  } catch {
-    return { success: false, error: 'Response was not valid JSON.' }
-  }
-
-  const result = UpsellResponseSchema.safeParse(parsedJson)
-  if (!result.success) {
-    return { success: false, error: result.error.message }
-  }
-  return { success: true, data: result.data }
+export function parseUpsellResponse(raw: string): ParseResult<UpsellResponse> {
+  return parseGeminiJson(raw, UpsellResponseSchema)
 }

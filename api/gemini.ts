@@ -39,15 +39,22 @@ const VALID_LANGUAGES: SupportedLanguage[] = ['en', 'es', 'fr']
 const VALID_HELP_KINDS: HelpRequestKind[] = ['lost', 'disturbance', 'general']
 
 // Flaw #37: CORS restricted to production origin + localhost dev only.
-const ALLOWED_ORIGIN =
+// Fails CLOSED: an unset/misconfigured PRODUCTION_ORIGIN blocks everyone
+// instead of silently accepting requests from anywhere.
+const ALLOWED_ORIGINS: readonly string[] =
   process.env.NODE_ENV === 'production'
-    ? (process.env.PRODUCTION_ORIGIN ?? '')
-    : 'http://localhost:5173'
+    ? [process.env.PRODUCTION_ORIGIN].filter((o): o is string => Boolean(o))
+    : ['http://localhost:5173', 'http://localhost:3000']
 
-function setCorsHeaders(res: VercelResponse): void {
-  res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN)
+function setCorsHeaders(req: VercelRequest, res: VercelResponse): boolean {
+  const origin = req.headers.origin
+  const isAllowed = typeof origin === 'string' && ALLOWED_ORIGINS.includes(origin)
+  if (isAllowed) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+  }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  return isAllowed
 }
 
 // Strips control characters except \n and \t (flaw #8).
@@ -65,10 +72,15 @@ function isHelpRequestKind(value: unknown): value is HelpRequestKind {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  setCorsHeaders(res)
+  const isAllowedOrigin = setCorsHeaders(req, res)
 
   if (req.method === 'OPTIONS') {
     res.status(204).end()
+    return
+  }
+
+  if (!isAllowedOrigin) {
+    res.status(403).json({ error: 'Origin not allowed.' })
     return
   }
 

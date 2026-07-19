@@ -204,7 +204,13 @@ export function ResponsePanel({
             AI response (unstructured)
           </p>
           <div className="prose prose-invert prose-sm max-w-none">
-            <ReactMarkdown disallowedElements={['script', 'iframe']} skipHtml>
+            <ReactMarkdown
+              disallowedElements={['script', 'iframe', 'object', 'embed', 'style', 'link', 'meta']}
+              skipHtml
+              urlTransform={(url) => {
+                const safe = /^(https?:|mailto:|#|\/)/i.test(url)
+                return safe ? url : ''
+              }}>
               {unstructuredText}
             </ReactMarkdown>
           </div>
